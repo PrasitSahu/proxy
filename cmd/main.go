@@ -2,21 +2,77 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	// "encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 	
 	conf "github.com/PrasitSahu/proxy/internal"
+	"github.com/PrasitSahu/proxy/internal/api"
 )
 
 func main(){
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", func(res http.ResponseWriter, req *http.Request){
-		res.Write([]byte("Hello World!"))
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+
+	client := http.Client{Timeout: time.Second * 2, Transport: tr}
+
+	mux.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
+		urlStr := req.URL.Query().Get("url")
+		if len(strings.TrimSpace(urlStr)) == 0 {
+			http.Error(res, api.ErrNoURL.Error(), http.StatusBadRequest)
+			return
+		}
+
+		url, err := url.Parse(urlStr)
+		if err != nil || url.Host == "" || url.Scheme == "" {
+			http.Error(res, api.ErrInvalidURL.Error(), http.StatusBadRequest)
+			return
+		}
+
+		newRequest, err := http.NewRequestWithContext(
+			req.Context(),
+			req.Method,
+			url.String(),
+			req.Body,
+		)
+		if err != nil {
+			http.Error(res, api.ErrReqFail.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		newRequest.Header = req.Header.Clone()
+
+		resp, err := client.Do(newRequest)
+		if err != nil {
+			http.Error(res, api.ErrReqFail.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		defer resp.Body.Close()
+
+		for k, v := range resp.Header {
+			for _, vv := range v {
+				res.Header().Add(k, vv)
+			}
+		}
+
+		res.WriteHeader(resp.StatusCode)
+		io.Copy(res, resp.Body)
+
+		return
 	})
 
 	server := &http.Server{
