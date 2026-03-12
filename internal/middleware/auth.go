@@ -7,6 +7,7 @@ import (
 	"github.com/PrasitSahu/proxy/internal/api"
 )
 
+// VerifySignature verifies the signature of the incoming request
 func VerifySignature(next http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		signature := req.Header.Get("Signature")
