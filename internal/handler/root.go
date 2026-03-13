@@ -2,6 +2,7 @@ package handler
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/PrasitSahu/proxy/internal/api"
 )
 
+// RootFunc handles the root request
 func RootFunc(res http.ResponseWriter, req *http.Request) {
 	urlStr := req.URL.Query().Get("url")
 	if len(strings.TrimSpace(urlStr)) == 0 {
@@ -38,6 +40,7 @@ func RootFunc(res http.ResponseWriter, req *http.Request) {
 
 	resp, err := conf.Config.HttpClient.Do(newRequest)
 	if err != nil {
+		log.Println(err)
 		http.Error(res, api.ErrReqFail.Error(), http.StatusInternalServerError)
 		return
 	}

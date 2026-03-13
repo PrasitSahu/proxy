@@ -13,12 +13,13 @@ import (
 
 	conf "github.com/PrasitSahu/proxy/internal"
 	"github.com/PrasitSahu/proxy/internal/handler"
+	"github.com/PrasitSahu/proxy/internal/middleware"
 )
 
 func main(){
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", handler.RootFunc)
+	mux.Handle("/", middleware.VerifySignature(handler.RootFunc))
 
 	server := &http.Server{
 		Addr: ":" + conf.Config.Port,
